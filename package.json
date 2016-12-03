@@ -1,0 +1,11 @@
+{
+  "name": "facebooksearch",
+  "version": "1.0.0",
+  "description": "",
+  "main": "facebooksearchcode.js",
+  "dependencies": {
+   "facebook-search":"0.1.1",
+   "mysql": "^2.12.0",
+   "fbgraph":"1.3.0"
+  }
+}
