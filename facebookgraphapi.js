@@ -2,7 +2,10 @@ var graph = require('fbgraph');
 const config = require('./config');
 const constants = config.constants;
 const mysql      = require('mysql');
-
+const kafka  = require('kafka-node');
+var Producer 		= kafka.Producer;
+var kafkaClient 	= new kafka.Client('localhost:2181');
+var producer 		= new Producer(kafkaClient);
 
 
  
@@ -17,6 +20,9 @@ const mysql      = require('mysql');
 });
  connection.connect();
  graph.setVersion("2.8");
+ 
+ 	payloads = [{	 topic: 'facebooktopic', messages: "", partition: 0 }];
+ 
  connection.query("SELECT * FROM restaurantlist",function(ferr,frows,ffields)
     {
         if(frows.length > 0)
@@ -50,10 +56,12 @@ const mysql      = require('mysql');
                       {
                           var data = res;
                       
-                         // for(var i =0; i < data.length; i++)
-                         // {
-                              console.log(data);
-                         // } 
+                              //console.log(data);
+                         payloads.messages = JSON.stringify(data);
+                         
+                         producer.send(payloads, function (err, data) {
+						    console.log('Pushed Successfully');
+					    });
                       }
                       
                       if(data.feed != undefined)
@@ -86,11 +94,14 @@ const mysql      = require('mysql');
                       }
                         var ndata = nres;
           
-                         // for(var j =0; j < ndata.length; j++)
-                         // {
-                              console.log(ndata);
-                          //}
-                          
+                             // console.log(ndata);
+                            payloads.messages = JSON.stringify(data);
+                         
+                             producer.send(payloads, function (err, data) {
+    						    console.log('Pushed Successfully');
+    					    });
+                           
+                           
                           recursivecall(nres,n); //Recursive call
                   });
               }
@@ -112,10 +123,7 @@ const mysql      = require('mysql');
               }
              
           }
-
-            
-            
-            
+  
         }
     });
                       
