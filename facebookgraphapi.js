@@ -4,7 +4,7 @@ const constants = config.constants;
 const mysql      = require('mysql');
 
 
-var params = { fields: "feed" };
+
  
  graph.setAccessToken(constants.access_token);
  
@@ -17,15 +17,29 @@ var params = { fields: "feed" };
 });
  connection.connect();
  graph.setVersion("2.8");
- connection.query("SELECT restaurantid FROM restaurantlist",function(ferr,frows,ffields)
+ connection.query("SELECT * FROM restaurantlist",function(ferr,frows,ffields)
     {
         if(frows.length > 0)
         {
+            
             function getDetails(n)
             {
                 
                 if(n < frows.length)
                 {
+                    var ep = frows[n].epoch;
+                    var date = new Date().toISOString();
+                    var params = "";
+                    if(ep == null)
+                    {
+                      params = { fields: "id,about,bio,business,category,category_list,cover,description,engagement,fan_count,general_info,hours,is_always_open,is_verified,is_permanently_closed,is_unclaimed,link,location,name,overall_star_rating,place_type,price_range,rating_count,username,verification_status,website,feed.until("+ date +"){message,place,link,actions,message_tags,scheduled_publish_time}" }; 
+                    }
+                    else
+                    {
+                         params = { fields: "id,about,bio,business,category,category_list,cover,description,engagement,fan_count,general_info,hours,is_always_open,is_verified,is_permanently_closed,is_unclaimed,link,location,name,overall_star_rating,place_type,price_range,rating_count,username,verification_status,website,feed.since("+ ep +"){message,place,link,actions,message_tags,scheduled_publish_time}" }; 
+                    }
+                    
+                    
                     graph.get(frows[n].restaurantid.toString(), params,  function(err, res) {
                       //console.log(res); // { picture: "http://profile.ak.fbcdn.net/..." } 
                       if(err)
@@ -34,16 +48,23 @@ var params = { fields: "feed" };
                       }
                       if(res != null)
                       {
-                          var data = res.feed.data;
+                          var data = res;
                       
-                          for(var i =0; i < data.length; i++)
-                          {
-                              console.log(data[i].message + "," + data[i].created_time);
-                          } 
+                         // for(var i =0; i < data.length; i++)
+                         // {
+                              console.log(data);
+                         // } 
                       }
                       
-                      if(res.feed.paging && res.feed.paging.next) {
-                            recursivecall(res.feed,n);
+                      if(data.feed != undefined)
+                      {
+                          if(data.feed.paging && data.feed.paging.next) {
+                                recursivecall(data.feed,n);
+                          }
+                      }
+                      else
+                      {
+                          getDetails(n + 1);
                       }
                     });
                 }
@@ -63,18 +84,30 @@ var params = { fields: "feed" };
                       {
                           console.log(nerr);
                       }
-                        var ndata = nres.data;
+                        var ndata = nres;
           
-                          for(var j =0; j < ndata.length; j++)
-                          {
-                              console.log(ndata[j].message + "," + ndata[j].created_time);
-                          }
+                         // for(var j =0; j < ndata.length; j++)
+                         // {
+                              console.log(ndata);
+                          //}
                           
                           recursivecall(nres,n); //Recursive call
                   });
               }
               else
               {
+                  //Update sql table : epoch field with todays date time.
+                  connection.query('UPDATE restaurantlist SET epoch = "'+ new Date().toISOString() +'" WHERE restaurantid = "'+ frows[n].restaurantid +'";', function(err, rows, fields) {
+					if (err) 
+					{
+					 console.log(err);   
+					}
+					else
+					{
+					    console.log("Updated");
+					}
+				});
+                  
                   getDetails(n + 1); 
               }
              
