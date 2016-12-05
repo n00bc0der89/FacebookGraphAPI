@@ -1,11 +1,13 @@
-var FacebookSearch = require('facebook-search');
+var graph = require('fbgraph');
 var fs = require("fs");
 const mysql      = require('mysql');
 const config = require('./config');
 const constants = config.constants;
 
-var fb = new FacebookSearch(constants.facebook_app_id, constants.facebook_app_secret); 
-
+//var fb = new FacebookSearch(constants.facebook_app_id, constants.facebook_app_secret); 
+ graph.setAccessToken(constants.access_token);
+  graph.setVersion("2.8");
+  
 var searchFor = { q: 'restaurants',type: 'place', center: '51.50,-0.10', distance: 10000 };
 
 console.log("host: " + process.env.IP);
@@ -20,14 +22,14 @@ const connection = mysql.createConnection({
  connection.connect();
 
 
-fb.search(searchFor, function(err, res) { 
+graph.search(searchFor, function(err, res) { 
     if(err)
     {
         console.log(err); 
     }
    //console.log(res);
    
-   var obj = res;
+   var obj = res.data;
     function getFbList(i)
     {
         if(i < obj.length)
@@ -37,59 +39,76 @@ fb.search(searchFor, function(err, res) {
                   //console.log("INSERT INTO restaurantlist (restaurantid,restaurantnames) values('" + obj[i].id + "','" +obj[i].name.replace(/'/,'') + "')");
                        if(frows.length == 0)
                        {
-                       	connection.query("INSERT INTO restaurantlist (restaurantid,restaurantnames) values('" + obj[i].id + "','" +obj[i].name.replace(/'/,'') + "')", function(err, rows, fields) {
+                       	connection.query("INSERT INTO restaurantlist (restaurantid,restaurantnames) values('" + obj[i].id + "','" +obj[i].name.replace(/'/g,'') + "')", function(err, rows, fields) {
                     			if (err){
                     				console.log(err);
                     			}
                     			
                     			console.log("Row inserted");
+                    			 getFbList(i + 1);
                     		});
                        }
                    });
-            getFbList(i + 1);
+                   
+               
+           
         }
+        
+            if(res.paging && res.paging.next)
+           {
+               recursivesearchcall(res);
+           }
     }
     
     getFbList(0); //First Call
 
-fb.next(function(nerr, nres) {
-    if(nerr)
-    {
-       console.log(nerr); 
-    }
-   // console.log(res);
-    obj = nres;
+function recursivesearchcall(res)
+{
+     if(res.paging && res.paging.next)
+      {
+          graph.get(res.paging.next, function(nerr, nres) {
+              if(nerr)
+              {
+                  console.log(nerr);
+              }
+              var data = nres.data;
+              
+              function getnextFbList(j)
+                {
+                    if(j < data.length)
+                    {
+                        connection.query("SELECT * FROM restaurantlist WHERE restaurantid ='" + data[j].id+ "'",function(nferr,nfrows,nffields)
+                               {
+                              //console.log("INSERT INTO restaurantlist (restaurantid,restaurantnames) values('" + obj[i].id + "','" +obj[i].name.replace(/'/,'') + "')");
+                                   if(nfrows.length == 0)
+                                   {
+                                   	connection.query("INSERT INTO restaurantlist (restaurantid,restaurantnames) values('" + data[j].id + "','" +data[j].name.replace(/'/g,'') + "')", function(err, rows, fields) {
+                                			if (err){
+                                				console.log(err);
+                                			}
+                                			
+                                			console.log("Row inserted");
+                                			  getnextFbList(j + 1);
+                                		});
+                                   }
+                               });
+                      
+                    }
+                }
    
-   function getnextFbList(j)
-    {
-        if(j < obj.length)
-        {
-            connection.query("SELECT * FROM restaurantlist WHERE restaurantid ='" + obj[j].id+ "'",function(nferr,nfrows,nffields)
-                   {
-                  //console.log("INSERT INTO restaurantlist (restaurantid,restaurantnames) values('" + obj[i].id + "','" +obj[i].name.replace(/'/,'') + "')");
-                       if(nfrows.length == 0)
-                       {
-                       	connection.query("INSERT INTO restaurantlist (restaurantid,restaurantnames) values('" + obj[j].id + "','" +obj[j].name.replace(/'/,'') + "')", function(err, rows, fields) {
-                    			if (err){
-                    				console.log(err);
-                    			}
-                    			
-                    			console.log("Row inserted");
-                    		});
-                       }
-                   });
-            getnextFbList(j + 1);
-        }
-    }
-   
-       getnextFbList(0);  //Call next page link
-       
-    setTimeout(function(){
-	connection.end();
-
-	}, 30000);
-	
-});
+                getnextFbList(0);  //Call next page link
+                
+                if(nres.paging && nres.paging.next)
+                {
+                  recursivesearchcall(nres);  
+                }
+                
+            });
+              
+      }
+              
+}
 
 }); 
+
 
