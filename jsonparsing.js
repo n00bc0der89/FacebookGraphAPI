@@ -15,6 +15,7 @@ var producer 		= new Producer(kafkaClient);
 	var idList = ["id","about","bio","business","category","category_list","cover","description","engagement","fan_count","hours","is_always_open","is_verified",
 	"is_permanently_closed","is_unclaimed","link","location.city","location.country","location.latitude","location.longitude","location.street","location.zip",
 	"name","overall_star_rating","place_type","price_range","rating_count","username","verification_status","website"];
+	
 
 	inputString = inputString.replace(/<3/g,'').trim();
 	//inputString = inputString.replace(/(\r\n|\n|\r)/gm,"").trim();
@@ -52,6 +53,7 @@ try{
 				val = 'parsedJSON.'+idList[i];
 				
 				try{
+					
 					evalVal = eval(val);
 				}
 				catch(ex){
@@ -59,24 +61,59 @@ try{
 					evalVal = '';
 				}
 				
-				if(evalVal == undefined || evalVal == null) {
-					
-					output = output + 'null' + constants.fieldDelimter;
-				}else{
-					if(val == "parsedJSON.description")
+				if(typeof evalVal == "object")
+				{
+					var objoutput = "";
+					for(var l =0 ; l < evalVal.length; l++)
 					{
+						if(val == "parsedJSON.category_list")
+						{
+							objoutput += evalVal[l].id + "," + 	evalVal[l].name;
+						}
 						
-						var desc = evalVal;
-						desc = desc.replace(/(\r\n|\n|\r)/gm,"").trim(); 
-						output = output + desc + constants.fieldDelimter;
-						console.log(desc);
-					}
-					else
-					{
-					output = output + evalVal + constants.fieldDelimter;
 					}
 					
-				} 
+					if(val == "parsedJSON.cover")
+					{
+						objoutput += evalVal.cover_id + "," + evalVal.offset_x + "," + evalVal.offset_y + "," + evalVal.source + "," + evalVal.id ;
+					}
+					
+					if(val == "parsedJSON.engagement")
+					{
+						objoutput += evalVal.count + "," + evalVal.social_sentence;
+					}
+					
+					if(val == "parsedJSON.hours")
+					{
+						objoutput += evalVal.mon_1_open + "," + evalVal.mon_1_close + "," + evalVal.tue_1_open
+						+ "," + evalVal.tue_1_close + "," + evalVal.wed_1_open + "," + evalVal.wed_1_close + "," + 
+						evalVal.thu_1_open + "," + evalVal.thu_1_close + "," + evalVal.fri_1_open + "," + evalVal.fri_1_close + "," 
+						+ evalVal.sat_1_open + "," + evalVal.sat_1_close + "," + evalVal.sun_1_open + "," + evalVal.sun_1_close ;
+					}
+						
+					output = output + objoutput + constants.fieldDelimter;
+				}
+				else
+				{
+					if(evalVal == undefined || evalVal == null) {
+						
+						output = output + 'null' + constants.fieldDelimter;
+					}else{
+						if(val == "parsedJSON.description" || val == "parsedJSON.about")
+						{
+							
+							var sent = evalVal;
+							sent = sent.replace(/(\r\n|\n|\r)/gm,"").trim(); 
+							output = output + sent + constants.fieldDelimter;
+							//console.log(desc);
+						}
+						else
+						{
+						output = output + evalVal + constants.fieldDelimter;
+						}
+						
+					} 
+				}
 		}
 			
 			//Get Feed related fields and append it.
@@ -86,11 +123,13 @@ try{
 				message = message.replace(/(\r\n|\n|\r)/gm,"").trim();
 			}
 			output = output + message + constants.fieldDelimter;
-			console.log(message);
+			
 			var picture = (parsedJSON.feed.data[d].picture != undefined ? parsedJSON.feed.data[d].picture : null);		//picture
 			output = output + picture + constants.fieldDelimter;
+			
 			var videosource = (parsedJSON.feed.data[d].source != undefined ? parsedJSON.feed.data[d].source : null);		//video
 			output = output + videosource + constants.fieldDelimter;
+			
 			var link = (parsedJSON.feed.data[d].link != undefined ? parsedJSON.feed.data[d].link : null);				//link
 			output = output + link + constants.fieldDelimter;
 			
